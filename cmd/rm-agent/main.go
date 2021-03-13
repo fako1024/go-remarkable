@@ -26,11 +26,16 @@ func main() {
 	cfg := parseConfig()
 	log := logrus.StandardLogger()
 
-	// Instantiate a new Remarkable device
+	// Instantiate a new Remarkable device and ensure it is closed properly
 	r, err := rm2.New()
 	if err != nil {
 		log.Fatalf("error instantiating Remarkable device: %s", err)
 	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Error(err)
+		}
+	}()
 
 	// Instantiate new router
 	router := fiber.New()
@@ -46,18 +51,28 @@ func main() {
 
 func handleFrame(r device.Remarkable) func(c *fiber.Ctx) error {
 
-	opt := jpeg.Options{Quality: 90}
 	width, height := r.Dimensions()
 
 	return func(c *fiber.Ctx) error {
 
+		// Set quality
+		opt := jpeg.Options{Quality: 80}
+		if q := c.Context().QueryArgs().GetUintOrZero("quality"); q != 0 {
+			if q < 0 || q > 100 {
+				return fmt.Errorf("invalid quality: %d", q)
+			}
+			opt.Quality = q
+		}
+
+		// Get a single frame from the device
 		data, err := r.Frame()
 		if err != nil {
 			return fmt.Errorf("error reading frame from framebuffer device: %s", err)
 		}
 
+		// Handle aspect ratio / orientation
 		var img *image.Gray
-		if c.Query("portrait") != "" {
+		if c.Query("portrait") == "true" {
 			bufRot := make([]byte, len(data))
 			images.Transpose(bufRot, data, width, height)
 			img = image.NewGray(image.Rect(0, 0, height, width))
@@ -67,6 +82,7 @@ func handleFrame(r device.Remarkable) func(c *fiber.Ctx) error {
 			img.Pix = data
 		}
 
+		// Encode and send the image
 		c.Context().SetContentType("image/jpeg")
 		imgBuf := new(bytes.Buffer)
 		if err = jpeg.Encode(imgBuf, img, &opt); err != nil {
