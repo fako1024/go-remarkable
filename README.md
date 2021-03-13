@@ -13,6 +13,7 @@ This package allows to interact with a ReMarkable (2) device on various levels, 
 - Access to framebuffer / screen data
   - Screenshot
   - Low latency, live stream (via client application) with low power consumption (using input detection)
+  - Low-overhead "broadcast" functionality supporting multiple clients at the same time
 
 ## Installation
 ```bash
