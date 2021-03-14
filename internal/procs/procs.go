@@ -2,7 +2,7 @@ package procs
 
 import (
 	"bufio"
-	"fmt"
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -18,46 +18,15 @@ const (
 	fb0DevName   = "/dev/fb0"
 )
 
-// PIDOf return the PID of a process based on its name (first match is returned)
-func PIDOf(processName string) (string, error) {
+// PIDOf return the PID of a process based on its PID file
+func PIDOf(pidFile string) (string, error) {
 
-	// Extract list of running processes
-	processes, err := ioutil.ReadDir(procPath)
+	file, err := ioutil.ReadFile(pidFile)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse system processes: %s", err)
+		return "", err
 	}
 
-	// Loop over all processes and look for a match
-	for _, process := range processes {
-		if process.IsDir() {
-
-			pidStr := process.Name()
-
-			if _, err := strconv.Atoi(pidStr); err == nil {
-
-				path := filepath.Join(procPath, pidStr, statFileName)
-				if _, err := os.Stat(path); err == nil {
-
-					statBytes, err := ioutil.ReadFile(path)
-					if err != nil {
-						return "", fmt.Errorf("failed to read stat path %s: %s", path, err)
-					}
-
-					// Parse binary name from stat file
-					statData := string(statBytes)
-					binStart := strings.IndexRune(statData, '(') + 1
-					binEnd := strings.IndexRune(statData[binStart:], ')')
-					binary := statData[binStart : binStart+binEnd]
-
-					if strings.Contains(binary, processName) {
-						return pidStr, nil
-					}
-				}
-			}
-		}
-	}
-
-	return "", fmt.Errorf("process `%s` not found", processName)
+	return string(bytes.TrimSpace(file)), nil
 }
 
 func MemoryOffset(pid string) (int64, error) {

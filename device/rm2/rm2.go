@@ -26,12 +26,16 @@ const (
 
 	penEventDevPath   = "/dev/input/event1"
 	touchEventDevPath = "/dev/input/event2"
+
+	pidFile = "/tmp/" + ProcName + ".pid"
+	//dataPath = "/home/root/.local/share/remarkable/xochitl"
 )
 
 // RM2 denotes a Remarkable 2 device
 type RM2 struct {
 	offset int64
 
+	pid           string
 	fbPtr         uintptr
 	fbDevice      *os.File
 	penEventDev   *os.File
@@ -40,32 +44,20 @@ type RM2 struct {
 	lastInput time.Time
 	writers   *multiwriter.MultiWriter
 
+	//*common.Device
 	sync.Mutex
 }
 
 // New instantiates a new Remarkable 2 device
 func New() (*RM2, error) {
 
-	pid, err := procs.PIDOf(ProcName)
-	if err != nil {
-		return nil, fmt.Errorf("error ascertaining PID of %s process: %s", ProcName, err)
-	}
-
-	offset, err := procs.MemoryOffset(pid)
-	if err != nil {
-		return nil, fmt.Errorf("error ascertaining memory offset of framebuffer device: %s", err)
-	}
-
-	fbDevice, err := os.OpenFile("/proc/"+pid+"/mem", os.O_RDONLY, os.ModeDevice)
-	if err != nil {
-		return nil, fmt.Errorf("error opening framebuffer device: %s", err)
-	}
-
 	r := &RM2{
-		fbDevice: fbDevice,
-		fbPtr:    fbDevice.Fd(),
-		offset:   offset,
-		writers:  multiwriter.New(),
+		writers: multiwriter.New(),
+		//Device:  common.NewDevice(dataPath),
+	}
+
+	if err := r.ensureRunning(); err != nil {
+		return nil, err
 	}
 
 	return r, nil
@@ -126,6 +118,10 @@ func (r *RM2) closeInputDevices() error {
 // Frame retrieves a single frame
 func (r *RM2) Frame() ([]byte, error) {
 
+	if err := r.ensureRunning(); err != nil {
+		return nil, err
+	}
+
 	buf := make([]byte, width*height)
 	if err := r.readFrame(buf); err != nil {
 		return nil, err
@@ -136,6 +132,10 @@ func (r *RM2) Frame() ([]byte, error) {
 
 // Stream continuously streams frames from the device
 func (r *RM2) stream() error {
+
+	if err := r.ensureRunning(); err != nil {
+		return err
+	}
 
 	frameLen := width * height
 	buf := make([]byte, frameLen)
@@ -207,6 +207,41 @@ func (r *RM2) NewStream(w io.Writer) error {
 // Dimensions returns the width + height of the underlying frame(buffer)
 func (r *RM2) Dimensions() (int, int) {
 	return width, height
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// init (re-)initializes the device
+func (r *RM2) init(pid string) (err error) {
+
+	r.pid = pid
+	r.offset, err = procs.MemoryOffset(r.pid)
+	if err != nil {
+		return fmt.Errorf("error ascertaining memory offset of framebuffer device: %s", err)
+	}
+
+	r.fbDevice, err = os.OpenFile("/proc/"+r.pid+"/mem", os.O_RDONLY, os.ModeDevice)
+	if err != nil {
+		return fmt.Errorf("error opening framebuffer device: %s", err)
+	}
+	r.fbPtr = r.fbDevice.Fd()
+
+	return
+}
+
+// ensureRunning makes sure that the PID of the underlying xochitl process hasn't changed and
+// (re-)initializes the device if necessary
+func (r *RM2) ensureRunning() error {
+
+	pid, err := procs.PIDOf(pidFile)
+	if err != nil {
+		return fmt.Errorf("error ascertaining PID of %s process: %s", ProcName, err)
+	}
+	if pid != r.pid {
+		return r.init(pid)
+	}
+
+	return nil
 }
 
 func (r *RM2) readInput(c chan error) error {
