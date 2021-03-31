@@ -16,4 +16,7 @@ type Remarkable interface {
 
 	// Dimensions returns the width + height of the underlying frame(buffer)
 	Dimensions() (int, int)
+
+	// Upload uploads a file (PDF / ePUB) to the device tree
+	Upload(name string, data []byte) error
 }

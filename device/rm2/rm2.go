@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fako1024/go-remarkable/device/common"
 	"github.com/fako1024/go-remarkable/internal/procs"
 	"github.com/fako1024/go-remarkable/multiwriter"
 )
@@ -27,8 +28,8 @@ const (
 	penEventDevPath   = "/dev/input/event1"
 	touchEventDevPath = "/dev/input/event2"
 
-	pidFile = "/tmp/" + ProcName + ".pid"
-	//dataPath = "/home/root/.local/share/remarkable/xochitl"
+	pidFile  = "/tmp/" + ProcName + ".pid"
+	dataPath = "/home/root/.local/share/remarkable/xochitl"
 )
 
 // RM2 denotes a Remarkable 2 device
@@ -44,7 +45,7 @@ type RM2 struct {
 	lastInput time.Time
 	writers   *multiwriter.MultiWriter
 
-	//*common.Device
+	*common.Device
 	sync.Mutex
 }
 
@@ -53,7 +54,7 @@ func New() (*RM2, error) {
 
 	r := &RM2{
 		writers: multiwriter.New(),
-		//Device:  common.NewDevice(dataPath),
+		Device:  common.NewDevice(dataPath),
 	}
 
 	if err := r.ensureRunning(); err != nil {

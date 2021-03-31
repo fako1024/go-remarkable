@@ -38,10 +38,13 @@ func main() {
 	}()
 
 	// Instantiate new router
-	router := fiber.New()
+	router := fiber.New(fiber.Config{
+		BodyLimit: 20 * 1024 * 1024, // 20 MB
+	})
 	router.Use(logger.New())
 	router.Get("/screen", handleFrame(r))
 	router.Get("/stream", handleStream(r))
+	router.Put("/upload/:filename", handleUpload(r))
 
 	// Run the web server
 	for {
@@ -105,6 +108,12 @@ func handleStream(r device.Remarkable) func(c *fiber.Ctx) error {
 		})
 
 		return err
+	}
+}
+
+func handleUpload(r device.Remarkable) func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) (err error) {
+		return r.Upload(c.Params("filename"), c.Body())
 	}
 }
 
