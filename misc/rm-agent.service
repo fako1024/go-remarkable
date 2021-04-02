@@ -1,0 +1,13 @@
+[Unit]
+Description=go-remarkable daemon
+After=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=10
+ExecStart=/home/root/rm-agent
+
+[Install]
+WantedBy=multi-user.target
