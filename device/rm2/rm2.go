@@ -47,6 +47,8 @@ type RM2 struct {
 
 	*common.Device
 	sync.Mutex
+
+	wg sync.WaitGroup
 }
 
 // New instantiates a new Remarkable 2 device
@@ -144,12 +146,14 @@ func (r *RM2) stream() error {
 
 	// Track device input in the background
 	ctx, cancel := context.WithCancel(context.Background())
+	r.wg.Add(2)
 	go r.waitEvent(ctx, c, r.penEventDev)
 	go r.waitEvent(ctx, c, r.touchEventDev)
 
 	// Ensure termination of input detection routines
 	defer func() {
 		cancel()
+		r.wg.Wait()
 		close(c)
 	}()
 
@@ -257,6 +261,8 @@ func (r *RM2) readInput(c chan error) error {
 }
 
 func (r *RM2) waitEvent(ctx context.Context, c chan error, dev *os.File) {
+	defer r.wg.Done()
+
 	b := make([]byte, 16)
 	for {
 
