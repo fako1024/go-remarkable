@@ -260,7 +260,7 @@ func (r *RM2) readInput(c chan error) error {
 	}
 }
 
-func (r *RM2) waitEvent(ctx context.Context, c chan error, dev *os.File) {
+func (r *RM2) waitEvent(ctx context.Context, c chan error, dev io.Reader) {
 	defer r.wg.Done()
 
 	b := make([]byte, 16)

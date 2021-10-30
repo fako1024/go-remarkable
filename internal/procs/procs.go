@@ -12,9 +12,7 @@ import (
 
 const (
 	procPath     = "/proc"
-	statFileName = "stat"
 	mapsFileName = "maps"
-	memFileName  = "mem"
 	fb0DevName   = "/dev/fb0"
 )
 
