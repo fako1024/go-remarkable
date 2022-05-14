@@ -1,5 +1,14 @@
 package device
 
+// Document denotes a document / file (name + content)
+type Document struct {
+	Name    string
+	Content []byte
+}
+
+// Documents denotes several documents
+type Documents []Document
+
 type FileMetaData struct {
 	Deleted          bool   `json:"deleted"`
 	LastModified     string `json:"lastModified"`

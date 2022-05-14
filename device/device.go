@@ -1,6 +1,8 @@
 package device
 
-import "io"
+import (
+	"io"
+)
 
 // Remarkable denotes a generic Remarkable device
 type Remarkable interface {
@@ -18,5 +20,5 @@ type Remarkable interface {
 	Dimensions() (int, int)
 
 	// Upload uploads a file (PDF / ePUB) to the device tree
-	Upload(name string, data []byte) error
+	Upload(docs ...Document) error
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"image"
 	"image/jpeg"
+	"io/ioutil"
 
 	"github.com/fako1024/go-remarkable/device"
 	"github.com/fako1024/go-remarkable/device/rm2"
@@ -44,7 +45,8 @@ func main() {
 	router.Use(logger.New())
 	router.Get("/screen", handleFrame(r))
 	router.Get("/stream", handleStream(r))
-	router.Put("/upload/:filename", handleUpload(r))
+	router.Get("/upload", handleUploadForm)
+	router.Post("/upload", handleUpload(r))
 
 	// Run the web server
 	for {
@@ -70,7 +72,7 @@ func handleFrame(r device.Remarkable) func(c *fiber.Ctx) error {
 		// Get a single frame from the device
 		data, err := r.Frame()
 		if err != nil {
-			return fmt.Errorf("error reading frame from framebuffer device: %s", err)
+			return fmt.Errorf("error reading frame from framebuffer device: %w", err)
 		}
 
 		// Handle aspect ratio / orientation
@@ -89,7 +91,7 @@ func handleFrame(r device.Remarkable) func(c *fiber.Ctx) error {
 		c.Context().SetContentType("image/jpeg")
 		imgBuf := new(bytes.Buffer)
 		if err = jpeg.Encode(imgBuf, img, &opt); err != nil {
-			return fmt.Errorf("error encoding frame: %s", err)
+			return fmt.Errorf("error encoding frame: %w", err)
 		}
 		c.Response().SetBody(imgBuf.Bytes())
 
@@ -111,9 +113,47 @@ func handleStream(r device.Remarkable) func(c *fiber.Ctx) error {
 	}
 }
 
+func handleUploadForm(c *fiber.Ctx) error {
+	c.Set(fiber.HeaderContentType, fiber.MIMETextHTML)
+	return c.SendString(staticHTML)
+}
+
 func handleUpload(r device.Remarkable) func(c *fiber.Ctx) error {
 	return func(c *fiber.Ctx) (err error) {
-		return r.Upload(c.Params("filename"), c.Body())
+
+		form, err := c.MultipartForm()
+		if err != nil {
+			return err
+		}
+
+		var docs device.Documents
+		for _, file := range form.File["file"] {
+			f, err := file.Open()
+			if err != nil {
+				return err
+			}
+			defer func() {
+				cerr := f.Close()
+				if err == nil {
+					err = cerr
+				}
+			}()
+
+			fileData, err := ioutil.ReadAll(f)
+			if err != nil {
+				return err
+			}
+			docs = append(docs, device.Document{
+				Name:    file.Filename,
+				Content: fileData,
+			})
+		}
+
+		if err := r.Upload(docs...); err != nil {
+			return err
+		}
+
+		return c.RedirectBack("/upload")
 	}
 }
 

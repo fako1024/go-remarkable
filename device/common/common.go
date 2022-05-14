@@ -33,37 +33,40 @@ func NewDevice(dataPath string) *Device {
 }
 
 // Upload uploads a file (PDF / ePUB) to the device tree
-func (d *Device) Upload(name string, data []byte) error {
+func (d *Device) Upload(docs ...device.Document) error {
 
-	// Grab the file extension and initialize a new random UUID
-	ext := filepath.Ext(name)
-	if !isValidExt(ext) {
-		return fmt.Errorf("invalid extension: %s", ext)
-	}
-	id := uuid.New()
+	for _, doc := range docs {
 
-	// Write the document metadata
-	if err := writeJSON(filepath.Join(d.dataPath, id.String()+".metadata"), &device.FileMetaData{
-		LastModified: fmt.Sprintf("%d", int64(time.Nanosecond)*time.Now().UnixNano()/int64(time.Millisecond)),
-		Type:         "DocumentType",
-		Version:      1,
-		VisibleName:  strings.TrimSuffix(filepath.Base(name), ext),
-	}); err != nil {
-		return err
-	}
+		// Grab the file extension and initialize a new random UUID
+		ext := filepath.Ext(doc.Name)
+		if !isValidExt(ext) {
+			return fmt.Errorf("invalid extension: %s", ext)
+		}
+		id := uuid.New()
 
-	// Write the device content metadata
-	if err := writeJSON(filepath.Join(d.dataPath, id.String()+".content"), &device.FileContentData{
-		ExtraMetadata: device.ExtraMetadata{},
-		FileType:      ext[1:],
-		Transform:     device.Transform{},
-	}); err != nil {
-		return err
-	}
+		// Write the document metadata
+		if err := writeJSON(filepath.Join(d.dataPath, id.String()+".metadata"), &device.FileMetaData{
+			LastModified: fmt.Sprintf("%d", int64(time.Nanosecond)*time.Now().UnixNano()/int64(time.Millisecond)),
+			Type:         "DocumentType",
+			Version:      1,
+			VisibleName:  strings.TrimSuffix(filepath.Base(doc.Name), ext),
+		}); err != nil {
+			return err
+		}
 
-	// Write the file
-	if err := ioutil.WriteFile(filepath.Join(d.dataPath, id.String()+ext), data, 0600); err != nil {
-		return err
+		// Write the device content metadata
+		if err := writeJSON(filepath.Join(d.dataPath, id.String()+".content"), &device.FileContentData{
+			ExtraMetadata: device.ExtraMetadata{},
+			FileType:      ext[1:],
+			Transform:     device.Transform{},
+		}); err != nil {
+			return err
+		}
+
+		// Write the file
+		if err := ioutil.WriteFile(filepath.Join(d.dataPath, id.String()+ext), doc.Content, 0600); err != nil {
+			return err
+		}
 	}
 
 	// Restart xochitl to force a scan of new files
