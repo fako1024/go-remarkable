@@ -1,3 +1,4 @@
+// Package common provides functionality shared by all Remarkable devices
 package common
 
 import (
@@ -8,10 +9,12 @@ import (
 	"time"
 
 	"github.com/fako1024/go-remarkable/device"
+	"github.com/fako1024/gotools/shell"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
 )
 
+// Supported file extensions
 const (
 	ExtPDF  = ".pdf"
 	ExtEPUB = ".epub"
@@ -59,7 +62,16 @@ func (d *Device) Upload(name string, data []byte) error {
 	}
 
 	// Write the file
-	return ioutil.WriteFile(filepath.Join(d.dataPath, id.String()+ext), data, 0644)
+	if err := ioutil.WriteFile(filepath.Join(d.dataPath, id.String()+ext), data, 0600); err != nil {
+		return err
+	}
+
+	// Restart xochitl to force a scan of new files
+	if _, err := shell.Run("systemctl restart xochitl"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -70,7 +82,7 @@ func writeJSON(path string, v interface{}) error {
 		return err
 	}
 
-	return ioutil.WriteFile(path, data, 0644)
+	return ioutil.WriteFile(path, data, 0600)
 }
 
 func isValidExt(ext string) bool {
