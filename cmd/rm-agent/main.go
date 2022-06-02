@@ -12,6 +12,7 @@ import (
 	"github.com/fako1024/go-remarkable/device"
 	"github.com/fako1024/go-remarkable/device/rm2"
 	"github.com/fako1024/go-remarkable/internal/images"
+	"github.com/fako1024/incept"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/sirupsen/logrus"
@@ -38,6 +39,11 @@ func main() {
 		}
 	}()
 
+	i, err := incept.New()
+	if err != nil {
+		log.Fatalf("error instantiating self-reload functionality: %s", err)
+	}
+
 	// Instantiate new router
 	router := fiber.New(fiber.Config{
 		BodyLimit: 20 * 1024 * 1024, // 20 MB
@@ -47,6 +53,9 @@ func main() {
 	router.Get("/stream", handleStream(r))
 	router.Get("/upload", handleUploadForm)
 	router.Post("/upload", handleUpload(r))
+	router.Post("/update", func(c *fiber.Ctx) error {
+		return i.Update(c.Body())
+	})
 
 	// Run the web server
 	for {
