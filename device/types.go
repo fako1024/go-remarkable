@@ -1,5 +1,48 @@
 package device
 
+type File struct {
+	Name string `json:"displayName"`
+	ID   string `json:"id"`
+}
+
+type Folder struct {
+	Name    string             `json:"displayName"`
+	ID      string             `json:"id"`
+	Files   []File             `json:"files"`
+	Folders map[string]*Folder `json:"folders"`
+}
+
+type Tree = Folder
+
+type Element struct {
+	ID       string    `json:"id"`
+	Name     string    `json:"name"`
+	Type     string    `json:"type"`
+	Children []Element `json:"children"`
+}
+
+func (f *Folder) Flatten() []Element {
+
+	var res []Element
+	for _, v := range f.Files {
+		res = append(res, Element{
+			ID:   v.ID,
+			Name: v.Name,
+			Type: "file",
+		})
+	}
+	for _, v := range f.Folders {
+		res = append(res, Element{
+			ID:       v.ID,
+			Name:     v.Name,
+			Type:     "folder",
+			Children: v.Flatten(),
+		})
+	}
+
+	return res
+}
+
 // Document denotes a document / file (name + content)
 type Document struct {
 	Name    string

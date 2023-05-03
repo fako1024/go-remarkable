@@ -21,4 +21,10 @@ type Remarkable interface {
 
 	// Upload uploads a file (PDF / ePUB) to the device tree
 	Upload(docs ...Document) error
+
+	// FileTree returns a tree structure of all files on the device
+	FileTree() (*Tree, error)
+
+	// Download retrieves a file (PDF / ePUB) from the device tree
+	Download(id string) (*Document, error)
 }

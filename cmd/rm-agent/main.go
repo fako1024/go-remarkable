@@ -52,6 +52,8 @@ func main() {
 	router.Get("/screen", handleFrame(r))
 	router.Get("/stream", handleStream(r))
 	router.Get("/upload", handleUploadForm)
+	router.Get("/tree", handleTree(r))
+	router.Get("/download/:id", handleDownload(r))
 	router.Post("/upload", handleUpload(r))
 	router.Post("/update", func(c *fiber.Ctx) error {
 		return i.Update(c.Body())
@@ -119,6 +121,30 @@ func handleStream(r device.Remarkable) func(c *fiber.Ctx) error {
 		})
 
 		return err
+	}
+}
+
+func handleTree(r device.Remarkable) func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) error {
+		tree, err := r.FileTree()
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(tree.Flatten())
+	}
+}
+
+func handleDownload(r device.Remarkable) func(c *fiber.Ctx) error {
+	return func(c *fiber.Ctx) (err error) {
+		file, err := r.Download(c.Params("id"))
+		if err != nil {
+			return err
+		}
+
+		c.Attachment(file.Name)
+		c.Response().SetBodyRaw(file.Content)
+		return nil
 	}
 }
 
